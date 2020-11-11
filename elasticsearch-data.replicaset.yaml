@@ -1,0 +1,84 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  namespace: elasticstack 
+  name: data-elasticsearch-data-0
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/elasticdata"
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  namespace: elasticstack
+  name: elasticsearch-data
+  labels:
+    app: elasticsearch
+    role: data
+spec:
+  serviceName: "elasticsearch-data"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: elasticsearch-data
+        role: data
+    spec:
+      containers:
+      - name: elasticsearch-data
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.3.0
+        env:
+        - name: CLUSTER_NAME
+          value: "docker-cluster"
+        - name: NODE_NAME
+          value: "elasticsearch-data"
+        - name: NODE_LIST
+          value: "elasticsearch-master,elasticsearch-data,elasticsearch-client"
+        - name: MASTER_NODES
+          value: "elasticsearch-master"
+        - name: discovery.seed_hosts
+          value: "elasticsearch-master,elasticsearch-data,elasticsearch-client"
+        - name: cluster.initial_master_nodes
+          value: "elasticsearch-master"
+        - name: "ES_JAVA_OPTS"
+          value: "-Xms1024m -Xmx1024m"
+        ports:
+        - containerPort: 9300
+          name: transport
+      initContainers:
+      - name: fix-permissions
+        image: busybox
+        command: ["sh", "-c", "chown -R 1000:1000 /data/elasticdata"]
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: config
+          mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+          readOnly: true
+          subPath: elasticsearch.yml
+        - name: data
+          mountPath: /data/elasticdata
+      volumes:
+      - name: config
+        configMap:
+          name: elasticsearch-data-config
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels:
+        app: elasticsearch-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: manual
+      resources:
+        requests:
+          storage: 10Gi
+---

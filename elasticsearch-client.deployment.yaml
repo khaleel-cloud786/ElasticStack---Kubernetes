@@ -18,6 +18,15 @@ spec:
         app: elasticsearch
         role: client
     spec:
+      initContainers:
+      - name: init-sysctl
+        image: busybox:1.27.2
+        command:
+        - sysctl
+        - -w
+        - vm.max_map_count=262144
+        securityContext:
+          privileged: true
       containers:
       - name: elasticsearch-client
         image: docker.elastic.co/elasticsearch/elasticsearch:7.3.0

@@ -16,6 +16,15 @@ spec:
       labels:
         app: kibana
     spec:
+      initContainers:
+      - name: init-sysctl
+        image: busybox:1.27.2
+        command:
+        - sysctl
+        - -w
+        - vm.max_map_count=262144
+        securityContext:
+          privileged: true
       containers:
       - name: kibana
         image: docker.elastic.co/kibana/kibana:7.3.0
